@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+    <vType id="car" accel="2.6" decel="4.5" sigma="0.5" length="5" maxSpeed="70"/>
+    <vType id="pedestrian" accel="1.0" decel="1.0" sigma="0.5" length="0.8" maxSpeed="1.5"/>
+
+    <route id="route_car" edges="left_to_center center_to_right"/>
+    <vehicle id="vehicle" type="car" route="route_car" depart="2"/>
+
+    <person id="pedestrian" type="pedestrian" depart="2">
+        <walk from="left_to_center" to="right_to_center"/>
+    </person>
+</routes>
