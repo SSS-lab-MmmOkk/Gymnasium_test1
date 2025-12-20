@@ -1,6 +1,2 @@
-gymnasium
-mesa==1.2.1
+pgmpy
 numpy
-pandas
-scipy
-tqdm

@@ -1,0 +1,523 @@
+{
+  "scenario_meta": {
+    "id": "scn_crosswalk_001",
+    "name": "Pedestrian Crossing with PET-based Decision",
+    "version": "1.0",
+    "description": "Validation scenario where a pedestrian (B) crosses after a preceding pedestrian (A). The AV makes decisions based on PET (Post Encroachment Time)."
+  },
+  "scenario_graph": {
+    "nodes": [
+      {
+        "id": "node_t_2",
+        "type": "state",
+        "description": "Vehicle accelerates after Pedestrian A passes"
+      },
+      {
+        "id": "node_t_1",
+        "type": "event",
+        "description": "Pedestrian B starts crossing",
+        "inference_model_ref": "bn_crosswalk_params",
+        "next_transition": "edge_approaching"
+      },
+      {
+        "id": "node_t",
+        "type": "result",
+        "description": "Result observation and evaluation"
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_approaching",
+        "source": "node_t_2",
+        "target": "node_t_1"
+      },
+      {
+        "id": "edge_resolving",
+        "source": "node_t_1",
+        "target": "node_t"
+      }
+    ]
+  },
+  "bayesian_models": [
+    {
+      "model_id": "bn_crosswalk_params",
+      "variables": [
+        {
+          "id": "C1_1_RelDist",
+          "type": "cause",
+          "description": "Relative Distance (D_entry)",
+          "states": [
+            "DangerZone",
+            "CautionZone",
+            "SafeZone"
+          ],
+          "probabilities": [
+            0.2,
+            0.5,
+            0.3
+          ]
+        },
+        {
+          "id": "C1_2_WalkSpeed",
+          "type": "cause",
+          "description": "Pedestrian Walk Speed (V_ped)",
+          "states": [
+            "Slow",
+            "Normal",
+            "Fast"
+          ],
+          "probabilities": [
+            0.2,
+            0.6,
+            0.2
+          ]
+        },
+        {
+          "id": "C1_3_CrossAngle",
+          "type": "cause",
+          "description": "Crossing Angle (theta_cross)",
+          "states": [
+            "Straight",
+            "Diagonal"
+          ],
+          "probabilities": [
+            0.7,
+            0.3
+          ]
+        },
+        {
+          "id": "C1_4_PedSize",
+          "type": "cause",
+          "description": "Pedestrian Size (H_ped)",
+          "states": [
+            "Child",
+            "Adult"
+          ],
+          "probabilities": [
+            0.2,
+            0.8
+          ]
+        },
+        {
+          "id": "C2_1_InitSpeed",
+          "type": "cause",
+          "description": "Initial Vehicle Speed (V_init)",
+          "states": [
+            "Slow",
+            "Target",
+            "Fast"
+          ],
+          "probabilities": [
+            0.1,
+            0.8,
+            0.1
+          ]
+        },
+        {
+          "id": "C2_2_SensorDelay",
+          "type": "cause",
+          "description": "Sensor Detection Delay (L_sensor)",
+          "states": [
+            "Minimal",
+            "Delayed"
+          ],
+          "probabilities": [
+            0.9,
+            0.1
+          ]
+        },
+        {
+          "id": "C2_3_PlanDelay",
+          "type": "cause",
+          "description": "Planning Action Delay",
+          "states": [
+            "None",
+            "Laggy"
+          ],
+          "probabilities": [
+            0.95,
+            0.05
+          ]
+        },
+        {
+          "id": "C2_4_MaxDecel",
+          "type": "cause",
+          "description": "Max Deceleration Performance (A_max)",
+          "states": [
+            "Poor",
+            "Normal",
+            "HighPerformance"
+          ],
+          "probabilities": [
+            0.1,
+            0.8,
+            0.1
+          ]
+        },
+        {
+          "id": "C3_1_Friction",
+          "type": "cause",
+          "description": "Road Friction Coefficient (mu)",
+          "states": [
+            "Wet",
+            "Dry"
+          ],
+          "probabilities": [
+            0.2,
+            0.8
+          ]
+        },
+        {
+          "id": "C3_2_Occlusion",
+          "type": "cause",
+          "description": "Presence of Occlusion (O_ccl)",
+          "states": [
+            "None",
+            "Present"
+          ],
+          "probabilities": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "L1_Recognition",
+          "type": "intermediate",
+          "description": "Recognition State",
+          "states": [
+            "EarlyDetect",
+            "LateDetect",
+            "Missed"
+          ],
+          "parents": [
+            "C1_4_PedSize",
+            "C2_2_SensorDelay",
+            "C3_2_Occlusion"
+          ],
+          "cpt": {
+            "Any+Any+Present": {
+              "EarlyDetect": 0.0,
+              "LateDetect": 0.1,
+              "Missed": 0.9
+            },
+            "Any+Delayed+None": {
+              "EarlyDetect": 0.1,
+              "LateDetect": 0.8,
+              "Missed": 0.1
+            },
+            "Adult+Minimal+None": {
+              "EarlyDetect": 0.95,
+              "LateDetect": 0.05,
+              "Missed": 0.0
+            },
+            "default": {
+              "EarlyDetect": 0.4,
+              "LateDetect": 0.4,
+              "Missed": 0.2
+            }
+          }
+        },
+        {
+          "id": "L2_Decision",
+          "type": "intermediate",
+          "description": "Action Decision based on PET logic",
+          "states": [
+            "Stop",
+            "Pass"
+          ],
+          "parents": [
+            "C1_1_RelDist",
+            "C2_1_InitSpeed",
+            "C1_2_WalkSpeed",
+            "L1_Recognition"
+          ],
+          "cpt": {
+            "DangerZone+Any+Slow+Any": {
+              "Stop": 1.0,
+              "Pass": 0.0
+            },
+            "CautionZone+Target+Fast+EarlyDetect": {
+              "Stop": 0.1,
+              "Pass": 0.9
+            },
+            "Any+Any+Any+LateDetect": {
+              "Stop": 0.9,
+              "Pass": 0.1
+            },
+            "default": {
+              "Stop": 0.6,
+              "Pass": 0.4
+            }
+          }
+        },
+        {
+          "id": "L3_Dynamics",
+          "type": "intermediate",
+          "description": "Vehicle Dynamics Result",
+          "states": [
+            "StableStop",
+            "Unstable",
+            "HardBrake",
+            "NotApplicable"
+          ],
+          "parents": [
+            "C2_4_MaxDecel",
+            "C3_1_Friction",
+            "L2_Decision"
+          ],
+          "cpt": {
+            "Poor+Wet+Stop": {
+              "StableStop": 0.2,
+              "Unstable": 0.8,
+              "HardBrake": 0.0,
+              "NotApplicable": 0.0
+            },
+            "Normal+Dry+Stop": {
+              "StableStop": 0.9,
+              "Unstable": 0.1,
+              "HardBrake": 0.0,
+              "NotApplicable": 0.0
+            },
+            "Any+Any+Pass": {
+              "StableStop": 0.0,
+              "Unstable": 0.0,
+              "HardBrake": 0.0,
+              "NotApplicable": 1.0
+            },
+            "default": {
+              "StableStop": 0.5,
+              "Unstable": 0.3,
+              "HardBrake": 0.2,
+              "NotApplicable": 0.0
+            }
+          }
+        },
+        {
+          "id": "E_PET_Bin",
+          "type": "evidence",
+          "description": "PETの二値化 (閾値 1.0s)",
+          "states": [
+            "LT_1s",
+            "GE_1s"
+          ]
+        },
+        {
+          "id": "R1_Outcome",
+          "type": "evidence",
+          "description": "距離とアクションに基づく最終評価 (Observer分類)",
+          "states": [
+            "Collision",
+            "NearMiss",
+            "CleanPass",
+            "SafeStop"
+          ]
+        }
+      ]
+    }
+  ],
+  "simulation_mapping": {
+    "C1_1_RelDist": {
+      "DangerZone": {
+        "dist": "normal",
+        "mean": 10.0,
+        "std": 2.0,
+        "unit": "meter"
+      },
+      "CautionZone": {
+        "dist": "normal",
+        "mean": 20.0,
+        "std": 3.0,
+        "unit": "meter"
+      },
+      "SafeZone": {
+        "dist": "normal",
+        "mean": 35.0,
+        "std": 5.0,
+        "unit": "meter"
+      }
+    },
+    "C1_2_WalkSpeed": {
+      "Slow": {
+        "dist": "normal",
+        "mean": 2.5,
+        "std": 0.5,
+        "unit": "km/h"
+      },
+      "Normal": {
+        "dist": "normal",
+        "mean": 4.5,
+        "std": 0.8,
+        "unit": "km/h"
+      },
+      "Fast": {
+        "dist": "normal",
+        "mean": 10.0,
+        "std": 2.0,
+        "unit": "km/h"
+      }
+    },
+    "C1_3_CrossAngle": {
+      "Straight": {
+        "dist": "uniform",
+        "min": 85,
+        "max": 95,
+        "unit": "degree"
+      },
+      "Diagonal": {
+        "dist": "uniform",
+        "min": 45,
+        "max": 85,
+        "unit": "degree"
+      }
+    },
+    "C1_4_PedSize": {
+      "Child": {
+        "value": 1.2,
+        "unit": "meter"
+      },
+      "Adult": {
+        "value": 1.7,
+        "unit": "meter"
+      }
+    },
+    "C2_1_InitSpeed": {
+      "Slow": {
+        "dist": "normal",
+        "mean": 20.0,
+        "std": 2.0,
+        "unit": "km/h"
+      },
+      "Target": {
+        "dist": "normal",
+        "mean": 30.0,
+        "std": 2.0,
+        "unit": "km/h"
+      },
+      "Fast": {
+        "dist": "normal",
+        "mean": 40.0,
+        "std": 3.0,
+        "unit": "km/h"
+      }
+    },
+    "C2_2_SensorDelay": {
+      "Minimal": {
+        "value": 0.0,
+        "unit": "second"
+      },
+      "Delayed": {
+        "dist": "exponential",
+        "scale": 0.3,
+        "unit": "second"
+      }
+    },
+    "C2_3_PlanDelay": {
+      "None": {
+        "value": 0.0,
+        "unit": "second"
+      },
+      "Laggy": {
+        "dist": "uniform",
+        "min": 0.1,
+        "max": 0.3,
+        "unit": "second"
+      }
+    },
+    "C2_4_MaxDecel": {
+      "Poor": {
+        "value": 0.4,
+        "unit": "g"
+      },
+      "Normal": {
+        "value": 0.6,
+        "unit": "g"
+      },
+      "HighPerformance": {
+        "value": 0.8,
+        "unit": "g"
+      }
+    },
+    "C3_1_Friction": {
+      "Wet": {
+        "dist": "beta",
+        "alpha": 2,
+        "beta": 5,
+        "scale_min": 0.4,
+        "scale_max": 0.7
+      },
+      "Dry": {
+        "dist": "beta",
+        "alpha": 5,
+        "beta": 2,
+        "scale_min": 0.7,
+        "scale_max": 1.0
+      }
+    },
+    "C3_2_Occlusion": {
+      "None": {
+        "value": false
+      },
+      "Present": {
+        "value": true
+      }
+    },
+    "R1_Outcome": {
+      "rules": [
+        {
+          "state": "Collision",
+          "condition": "MIN_DISTANCE <= 0.0"
+        },
+        {
+          "state": "NearMiss",
+          "condition": "ACTION == 'Pass' && MIN_DISTANCE > 0.0 && MIN_DISTANCE <= 1.5"
+        },
+        {
+          "state": "CleanPass",
+          "condition": "ACTION == 'Pass' && MIN_DISTANCE > 1.5"
+        },
+        {
+          "state": "SafeStop",
+          "condition": "ACTION == 'Stop' && MIN_DISTANCE > 0.0"
+        }
+      ]
+    },
+    "E_PET_Bin": {
+      "rules": [
+        {
+          "state": "LT_1s",
+          "condition": "PET < 1.0"
+        },
+        {
+          "state": "GE_1s",
+          "condition": "PET >= 1.0"
+        }
+      ]
+    }
+  },
+  "schema_version": "1.0",
+  "learning": {
+    "method": "dirichlet_pseudocount",
+    "update_condition": "R1_Outcome == 'NearMiss'",
+    "target_nodes": [
+      "C1_1_RelDist",
+      "C1_2_WalkSpeed",
+      "C1_3_CrossAngle",
+      "C1_4_PedSize",
+      "C2_1_InitSpeed",
+      "C2_2_SensorDelay",
+      "C2_3_PlanDelay",
+      "C2_4_MaxDecel",
+      "C3_1_Friction",
+      "C3_2_Occlusion"
+    ],
+    "alpha0": "use_initial_probabilities_as_pseudocounts",
+    "notes": "NearMissが出た試行で実際にサンプルされたL1状態をカウントし、事前確率を更新する。"
+  },
+  "cpt_matching": {
+    "rule_priority": [
+      "most_specific_fewest_Any",
+      "first_defined_wins",
+      "fallback_default"
+    ]
+  }
+}
